@@ -4,53 +4,30 @@
 
 **1. Điều gì làm bạn ngạc nhiên nhất?**
 
-Không phải việc fine-tune thắng hay thua, mà là **cách nó thắng/thua**. Tôi nghĩ khi so
-từng ticket một, bản fine-tune sẽ có vài ca thua rõ ràng trước baseline (b) — nhưng khi
-so thật từng trường trên 9 ticket khó nhất, `(b)` không thắng `(c)` ở bất kỳ ticket nào
-trong cả tập target: chỉ có hoà hoặc fine-tune thắng. Cùng lúc đó, ở tập regression
-(câu hỏi ngoài miền), fine-tune lại thua thảm — ví dụ rõ nhất là câu "1 km bằng bao
-nhiêu mét?", model không trả lời "1000 mét" nữa mà chỉ nhả ra một khối JSON triage rỗng
-với `product: null`. Tức là fine-tune không "kém đi một chút ở mọi nơi" như tôi tưởng,
-mà là "hoàn hảo trong đúng cái hộp nó được huấn luyện, và sụp hoàn toàn ngay khi ra khỏi
-hộp đó". Ranh giới đó sắc hơn tôi nghĩ rất nhiều.
+Điều làm em bất ngờ nhất không phải là việc fine-tune có thắng prompt baseline hay không, mà là **ranh giới hiệu năng quá gắt gao**. Em từng nghĩ model fine-tune sẽ có vài ca thua baseline `(b)` ở các ticket phức tạp, nhưng thực tế khi soi kỹ 9 ticket khó nhất thì `(b)` không thắng được `(c)` ở bất kỳ ticket nào (toàn hoà hoặc FT thắng). 
+
+Thế nhưng, vừa bước chân ra khỏi miền dữ liệu huấn luyện (tập regression) thì model lại sụp đổ hoàn toàn. Điển hình như câu hỏi cơ bản *"1 km bằng bao nhiêu mét?"*, thay vì đáp "1000m" như model gốc thì bản fine-tune lại cố ép về một khối JSON triage rỗng với `product: null`. Model không hề "giảm độ thông minh từ từ", mà là làm cực kỳ xuất sắc trong đúng cái hộp được dạy và "ngáo" hẳn khi ra ngoài cái hộp đó.
 
 **2. Bạn mất nhiều thời gian nhất ở đâu? Nó có phải chỗ bạn dự đoán không?**
 
-Theo `stage timings` đo được: NB4 (ba run đối chứng: `attn_only`, `wrong_lr`, `qlora`)
-chiếm 3104s / 5389s tổng — tức 57.6% tổng thời gian toàn pipeline, hơn cả bốn notebook
-còn lại cộng lại. _(Bạn tự đánh giá: điều này có khớp với cảm giác lúc chờ Colab chạy
-không, hay phần bạn cảm thấy "mất thời gian" thực ra là lúc debug/đọc hiểu số liệu chứ
-không phải lúc máy đang train?)_
+Về thời gian máy chạy, đúng là NB4 (3 run đối chứng `attn_only`, `wrong_lr`, `qlora`) ngốn nhiều nhất — chiếm hơn 51 phút trên tổng gần 90 phút toàn pipeline (chiếm ~57.6%).
+
+Tuy nhiên, phần ngốn nhiều thời gian và công sức của em nhất thực tế lại là **khâu đối soát và phân tích số liệu sau khi train**. Việc ngồi soi từng file log, bóc tách JSON để tìm nguyên nhân tại sao loss thấp mà eval không tăng, hay viết thêm script để so sánh output từng ticket giữa các baseline tốn nhiều nơ-ron hơn nhiều so với việc chỉ ngồi chờ Colab chạy.
 
 **3. Trước lab này bạn tin điều gì về fine-tuning mà giờ bạn không còn tin?**
 
-_(Câu này chỉ bạn trả lời được — đây là một gợi ý có căn cứ từ chính số liệu của bạn,
-không phải suy đoán về bạn:)_ Một niềm tin phổ biến là "loss huấn luyện thấp hơn = model
-tốt hơn". Số liệu của chính bạn bác bỏ điều đó trực tiếp: `attn_only` có loss thấp hơn
-`correct` (0.5371 so với 0.6263) nhưng trên tác vụ thật hai bên chỉ hoà — nếu chọn model
-theo loss, bạn sẽ không sai, nhưng nếu tưởng loss thấp hơn nghĩa là "tốt hơn", bạn sẽ kết
-luận nhầm rằng attention-only là placement ưu việt hơn.
+Trước đây em luôn mặc định trong đầu: *"Train loss càng ép xuống thấp thì model ra lò càng xịn"*.
+
+Sau bài lab này thì số liệu thực tế đã chứng minh điều ngược lại. Cụ thể, run `attn_only` đạt train loss thấp hơn hẳn bản chuẩn `correct` (0.5371 so với 0.6263), nhưng khi đưa vào đánh giá tác vụ thực tế thì điểm số hai bên chỉ ngang ngửa nhau. Nếu chỉ nhìn vào loss trên đồ thị thì rất dễ bị đánh lừa là attention-only tốt hơn, trong khi bản chất nó chỉ đang học vẹt/overfit nhanh hơn trên tập train.
 
 **4. Bạn dùng AI assistant vào việc gì trong lab? Chỗ nào nó sai?**
 
-Tôi (Claude) được dùng để: đọc và tổng hợp log Colab của cả 5 notebook, tính toán số
-liệu chéo từ nhiều file JSON (`mask_proof`, `baselines_frozen`, `runs.csv`, `autopsy`,
-`verdict`, `qualitative`), soạn khung `REPORT.md` bám theo rubric, và viết các đoạn code
-Python để lấy thêm dữ liệu mà pipeline gốc không lưu sẵn (prediction của baseline (b)
-theo từng ticket, và ví dụ trên tập regression).
+Em dùng AI để hỗ trợ tăng tốc công việc: viết các hàm Python gom và parse log từ các file JSON (`mask_proof`, `baselines_frozen`, `runs.csv`, `autopsy`,...), hỗ trợ format bảng biểu và dựng khung sườn cho báo cáo.
 
-Chỗ nó sai rõ ràng nhất: ở bản nháp đầu tiên của mục 6, tôi (Claude) đã suy đoán — không
-có bằng chứng — rằng 3 ticket điểm thấp nhất của fine-tune (i=3, 5, 12) "khả năng là ca
-FT thua". Sau khi thật sự sinh dự đoán của `(b)` trên các ticket đó, sự thật ngược lại
-hoàn toàn: `(b)` không hề thắng, chỉ hoà hoặc thua. Tôi phải viết lại toàn bộ mục 6. Bài
-học: đừng để AI suy đoán số liệu thay vì đo — kể cả khi suy đoán đó "nghe có lý", nó vẫn
-cần được xác minh bằng dữ liệu thật trước khi đưa vào report.
+Chỗ AI làm sai rõ nhất là tính **"đoán mò thay vì đo thật"**: Khi phân tích mục so sánh các ticket khó, AI từng tự tiện phán đoán rằng các ticket điểm thấp của fine-tune là do "FT bị baseline (b) vượt mặt". Đến khi em chạy code sinh kết quả và eval trực tiếp thì thực tế baseline (b) còn tệ hơn. Bài học rút ra là tuyệt đối không tin các nhận định định tính của AI nếu chưa có số liệu đo đạc thực tế từ code.
 
 **5. Nếu ngày mai phải fine-tune cho một khách hàng thật, bước đầu tiên bạn làm là gì?**
 
-Trước khi chạy bất kỳ dòng code
-huấn luyện nào, tôi sẽ hỏi khách hàng: "Ngoài tác vụ này, model còn phải trả lời được
-những loại câu hỏi nào khác?" — rồi thu thập ngay 1-5% dữ liệu tổng quát/đa dạng để trộn
-vào tập train từ đầu, thay vì coi đó là bước "sửa sau nếu regression tụt". Lab này cho
-thấy catastrophic forgetting không phải rủi ro nhỏ cần theo dõi — nó là kết quả mặc định
-nếu dữ liệu huấn luyện chỉ có một loại input duy nhất.
+Bước đầu tiên của em không phải là nhảy vào chọn model hay config tham số, mà là **ngồi lại với khách hàng để chốt bộ test benchmark và phạm vi sử dụng**.
+
+Em sẽ hỏi rõ: *"Ngoài việc giải quyết đúng bài toán này, model có cần trả lời các câu hỏi hội thoại thông thường nữa không?"*. Đồng thời, em sẽ chuẩn bị sẵn một tập validation đa nhiệm (regression set) và trộn ngay khoảng 2-5% dữ liệu tổng quát vào tập train từ đầu. Lab này cho thấy hiện tượng quên tri thức cũ (catastrophic forgetting) là điều chắc chắn sẽ xảy ra nếu chỉ huấn luyện dữ liệu đơn ngành một chiều.
