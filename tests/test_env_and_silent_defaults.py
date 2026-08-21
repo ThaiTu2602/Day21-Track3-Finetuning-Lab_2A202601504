@@ -8,13 +8,21 @@ file because they share that shape, not because they share a module.
 from __future__ import annotations
 
 import os
+import sys
 import warnings
+from pathlib import Path
 
 import pytest
 
 from labkit import env as labenv
 from labkit import evaluate as ev
 from labkit.config import get_tier
+
+# `tests/` has no __init__.py, so it is not always importable as a package (depends on
+# pytest's import-mode / sys.path state, which drifts across Python and pytest versions).
+# Insert this file's own directory directly rather than relying on `tests.fake_tokenizer`
+# resolving -- the same fix already used in test_repo_structure.py.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
 # --- F-25: .env is actually read ---------------------------------------------
@@ -111,7 +119,7 @@ def test_reasoningless_corpus_warns_for_think_modes():
     closes an empty <think></think>, so `masked-think` and `response-only` are
     byte-identical to `assistant-only` there. Silent no-ops are what this lab is about."""
     from labkit import data
-    from tests.fake_tokenizer import FakeTokenizer
+    from fake_tokenizer import FakeTokenizer
 
     records = [{"instruction": "i", "input": "x", "output": '{"a": 1}'}]
     with pytest.warns(RuntimeWarning, match="no-op on this corpus"):
@@ -121,7 +129,7 @@ def test_reasoningless_corpus_warns_for_think_modes():
 
 def test_no_warning_when_the_corpus_has_traces():
     from labkit import data
-    from tests.fake_tokenizer import FakeTokenizer
+    from fake_tokenizer import FakeTokenizer
 
     records = [{"instruction": "i", "input": "x",
                 "output": '<think>vi sao</think>\n{"a": 1}'}]
@@ -134,7 +142,7 @@ def test_no_warning_when_the_corpus_has_traces():
 def test_assistant_only_never_warns():
     """The default mode is not affected by any of this."""
     from labkit import data
-    from tests.fake_tokenizer import FakeTokenizer
+    from fake_tokenizer import FakeTokenizer
 
     records = [{"instruction": "i", "input": "x", "output": '{"a": 1}'}]
     with warnings.catch_warnings():
